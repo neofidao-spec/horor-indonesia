@@ -1,0 +1,66 @@
+name: Build APK — Malam Jumat Kliwon
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Copy game files to Android assets
+        run: |
+          mkdir -p android/app/src/main/assets/game/scenes
+          cp -r game/*.html game/engine.js game/main.js android/app/src/main/assets/game/
+          cp -r game/scenes/*.js android/app/src/main/assets/game/scenes/
+          echo "Assets prepared:"
+          find android/app/src/main/assets -type f | head -20
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: wrapper
+          build-root-directory: android
+
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon
+        env:
+          CI: true
+
+      - name: Sign APK (debug key)
+        run: |
+          # Use Android debug keystore
+          keytool -genkey -v -keystore debug.keystore -alias debug \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass android -keypass android \
+            -dname "CN=Developer, OU=Dev, O=HororIndonesia, L=Unknown, ST=Unknown, C=ID" 2>/dev/null || true
+          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
+            -keystore debug.keystore -storepass android \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk debug 2>/dev/null || true
+
+      - name: Align APK
+        run: |
+          ${ANDROID_HOME}/build-tools/34.0.0/zipalign -v -p 4 \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk \
+            MalamJumatKliwon-v1.0.apk 2>/dev/null || \
+          cp android/app/build/outputs/apk/release/app-release-unsigned.apk MalamJumatKliwon-v1.0.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MalamJumatKliwon-APK
+          path: MalamJumatKliwon-v1.0.apk
+          if-no-files-found: error
