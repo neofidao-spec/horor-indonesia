@@ -113,14 +113,8 @@ SceneLoader.register('makam', {
       [920,750],[1020,750],[1120,750],
       [940,830],[1040,830],[1140,830],
     ];
-    // 40 nisan total (36 normal + 3 clue dirotasi dari beberapa posisi)
-    // Tapi kita perlu 40. Dari 34 posisi di atas, kita tambah 6 lagi:
-    const extraPos = [
-      [480,600],[580,600],
-      [480,900],[580,900],
-      [800,140],[900,140],
-    ];
-    const allPos = [...gravePositions, ...extraPos]; // 40 posisi
+    // 40 nisan total (37 normal + 3 clue)
+    const allPos = gravePositions; // 40 posisi
 
     // Indeks nisan clue (3 clue spesifik)
     const clueIndices = [7, 15, 28]; // tersebar di sektor berbeda

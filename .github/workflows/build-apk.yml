@@ -36,7 +36,7 @@ jobs:
       - name: Copy game to assets
         run: |
           mkdir -p android/app/src/main/assets/game/scenes
-          cp game/index.html game/engine.js game/main.js android/app/src/main/assets/game/
+          cp game/index.html game/engine.js game/assets.js game/main.js android/app/src/main/assets/game/
           cp game/scenes/*.js android/app/src/main/assets/game/scenes/
 
       - name: Setup Gradle

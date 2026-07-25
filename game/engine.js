@@ -36,6 +36,9 @@ const Engine = {
   audioEnabled: true,
 
   init() {
+    // Ensure Asset is initialized before game loop
+    if (typeof Asset !== 'undefined' && Asset.init) Asset.init();
+
     this.canvas = document.getElementById('gameCanvas');
     this.ctx = this.canvas.getContext('2d');
     this.resize();
