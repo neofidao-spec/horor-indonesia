@@ -113,5 +113,20 @@ canvas{display:block;width:100%;height:100%;background:#0a0a0a;image-rendering:p
 <script src="scenes/makam.js"></script>
 <script src="scenes/sawah.js"></script>
 <script src="main.js"></script>
+<script>
+// Error catcher — show on screen so user can report
+window.onerror = function(msg, url, line, col, err) {
+  var el = document.getElementById('error-display') || (function(){
+    var d = document.createElement('div');
+    d.id = 'error-display';
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#800;color:#fff;padding:10px;z-index:9999;font-size:12px;font-family:monospace;white-space:pre-wrap';
+    document.body.appendChild(d);
+    return d;
+  })();
+  el.textContent = 'ERROR: '+ (err && err.stack ? err.stack : msg+' at '+url+':'+line);
+  el.style.display = 'block';
+  return true;
+};
+</script>
 </body>
 </html>
