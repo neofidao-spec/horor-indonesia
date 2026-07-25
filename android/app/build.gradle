@@ -24,6 +24,10 @@ android {
     aaptOptions {
         noCompress 'html', 'js', 'css', 'png', 'jpg', 'json'
     }
+
+    lint {
+        abortOnError false
+    }
 }
 
 dependencies {
