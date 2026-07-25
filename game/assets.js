@@ -716,21 +716,30 @@ const Asset = {
     };
 
     this.sprites['foto'] = (ctx, x, y) => {
-      ctx.fillStyle = '#1a0a00';
-      ctx.fillRect(x + 6, y + 4, 20, 22);
-      ctx.fillStyle = '#3a2a1a';
-      ctx.fillRect(x + 8, y + 6, 16, 18);
-      // Photo faces (blobs)
-      ctx.fillStyle = '#4a3a3a';
-      ctx.beginPath();
-      ctx.arc(x + 12, y + 12, 3, 0, Math.PI * 2);
-      ctx.arc(x + 20, y + 12, 3, 0, Math.PI * 2);
-      ctx.arc(x + 16, y + 20, 3, 0, Math.PI * 2);
-      ctx.fill();
-      // Blood effect
-      ctx.fillStyle = 'rgba(139,58,58,0.3)';
-      ctx.fillRect(x + 8, y + 10, 16, 4);
+      // Frame
+      ctx.fillStyle = P.wood;
+      ctx.fillRect(x, y, 32, 32);
+      ctx.fillStyle = P.woodLight;
+      ctx.fillRect(x + 2, y + 2, 28, 28);
+      // Photo area
+      ctx.fillStyle = '#c4b8a0';
+      ctx.fillRect(x + 4, y + 4, 24, 20);
+      // Family silhouettes
+      ctx.fillStyle = 'rgba(60,30,20,0.4)';
+      ctx.fillRect(x + 7, y + 7, 6, 12);  // adult 1
+      ctx.fillRect(x + 14, y + 9, 5, 10); // child 1
+      ctx.fillRect(x + 20, y + 8, 5, 11); // child 2
+      ctx.fillStyle = 'rgba(60,30,20,0.6)';
+      ctx.fillRect(x + 14, y + 6, 5, 3);  // adult 2 head
+      // Red eyes on one figure
+      ctx.fillStyle = '#f22';
+      ctx.fillRect(x + 23, y + 11, 2, 1);
+      ctx.fillRect(x + 23, y + 14, 2, 1);
+      // Glass reflection
+      ctx.fillStyle = 'rgba(200,200,255,0.06)';
+      ctx.fillRect(x + 6, y + 6, 8, 6);
     };
+
   },
 
   /* === DRAW HELPERS === */
