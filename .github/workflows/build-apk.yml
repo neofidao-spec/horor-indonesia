@@ -20,7 +20,6 @@ jobs:
 
       - name: Setup Android SDK
         run: |
-          # Install Android SDK commandline tools
           mkdir -p $HOME/android-sdk/cmdline-tools
           cd $HOME/android-sdk/cmdline-tools
           curl -sL "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip" -o cmdline-tools.zip
@@ -28,23 +27,17 @@ jobs:
           mv cmdline-tools latest
           export ANDROID_HOME=$HOME/android-sdk
           export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$PATH
-          
-          # Accept licenses and install required SDK
           yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager "platforms;android-34" "build-tools;34.0.0" > /dev/null 2>&1
-          
           echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
           echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "Android SDK ready"
 
-      - name: Copy game files to Android assets
+      - name: Copy game to assets
         run: |
           mkdir -p android/app/src/main/assets/game/scenes
-          cp -r game/*.html game/engine.js game/main.js android/app/src/main/assets/game/
-          cp -r game/scenes/*.js android/app/src/main/assets/game/scenes/
-          echo "Assets prepared:"
-          find android/app/src/main/assets -type f | head -20
+          cp game/index.html game/engine.js game/main.js android/app/src/main/assets/game/
+          cp game/scenes/*.js android/app/src/main/assets/game/scenes/
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
@@ -52,35 +45,18 @@ jobs:
           gradle-version: wrapper
           build-root-directory: android
 
-      - name: Build APK
+      - name: Build APK (debug)
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon
+          ./gradlew assembleDebug --no-daemon --stacktrace
         env:
           CI: true
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-
-      - name: Sign APK (debug key)
-        run: |
-          keytool -genkey -v -keystore debug.keystore -alias debug \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -storepass android -keypass android \
-            -dname "CN=Developer, OU=Dev, O=HororIndonesia, L=Unknown, ST=Unknown, C=ID" 2>/dev/null || true
-          jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 \
-            -keystore debug.keystore -storepass android \
-            android/app/build/outputs/apk/release/app-release-unsigned.apk debug 2>/dev/null || true
-
-      - name: Align APK
-        run: |
-          ${ANDROID_HOME}/build-tools/34.0.0/zipalign -v -p 4 \
-            android/app/build/outputs/apk/release/app-release-unsigned.apk \
-            MalamJumatKliwon-v1.0.apk 2>/dev/null || \
-          cp android/app/build/outputs/apk/release/app-release-unsigned.apk MalamJumatKliwon-v1.0.apk
+          ANDROID_HOME: $HOME/android-sdk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: MalamJumatKliwon-APK
-          path: MalamJumatKliwon-v1.0.apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
