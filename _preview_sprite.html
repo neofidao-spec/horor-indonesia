@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html><head><style>
+body { background: #111; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; }
+canvas { image-rendering: pixelated; border: 1px solid #333; }
+</style></head><body>
+<canvas id="c" width="256" height="128"></canvas>
+<script>
+const ASSETS = {};
+ASSETS._empty = (w,h) => new Array(w*h).fill('');
+ASSETS._set = (a,x,y,w,c) => { a[y*w+x]=c; };
+ASSETS._fill = (a,x,y,w,h,s,c) => { for(let r=y;r<y+h;r++) for(let col=x;col<x+w;col++) a[r*s+col]=c; };
+
+// Inject sprite data
+{{SPRITE_DATA}}
+
+const SCALE = 4;
+const names = ['player_idle_down','player_idle_up','player_idle_left','player_idle_right'];
+const labels = ['BAWAH','ATAS','KIRI','KANAN'];
+const ctx = document.getElementById('c').getContext('2d');
+ctx.fillStyle = '#1a1a2e';
+ctx.fillRect(0,0,256,128);
+
+names.forEach((name,i) => {
+  const s = ASSETS.sprites[name];
+  const ox = i * 64;
+  s.data.forEach((c,idx) => {
+    if (!c) return;
+    const px = idx % s.w, py = Math.floor(idx / s.w);
+    ctx.fillStyle = c;
+    ctx.fillRect(ox + px*SCALE, py*SCALE, SCALE, SCALE);
+  });
+  ctx.fillStyle = '#888';
+  ctx.font = '10px monospace';
+  ctx.fillText(labels[i], ox+8, 126);
+});
+</script></body></html>

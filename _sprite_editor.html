@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pixel Sprite Editor — Malam Jumat Kliwon</title>
+<style>
+* { box-sizing: border-box; }
+body { background: #111; color: #ddd; font-family: monospace; margin: 0; padding: 10px; display: flex; flex-direction: column; align-items: center; }
+h1 { color: #8af; font-size: 16px; margin: 5px 0; }
+h2 { color: #6af; font-size: 12px; margin: 5px 0; }
+
+.editor { display: flex; gap: 15px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+
+#pixelCanvas {
+  image-rendering: pixelated;
+  border: 2px solid #444;
+  cursor: crosshair;
+  background: #1a1a2e;
+}
+
+.tools { display: flex; flex-direction: column; gap: 6px; min-width: 160px; }
+.tools button { background: #2a2a44; color: #ddd; border: 1px solid #444; padding: 6px 10px; cursor: pointer; font-family: monospace; font-size: 11px; }
+.tools button:hover { background: #3a3a5a; }
+.tools button.active { background: #4a6a8a; border-color: #8af; }
+.color-row { display: flex; gap: 2px; flex-wrap: wrap; }
+.color-swatch { width: 22px; height: 22px; border: 1px solid #333; cursor: pointer; border-radius: 2px; }
+.color-swatch.active { border: 2px solid #fff; }
+
+#exportOutput {
+  width: 100%;
+  max-width: 800px;
+  height: 300px;
+  background: #0a0a1a;
+  color: #8f8;
+  border: 1px solid #333;
+  font-family: monospace;
+  font-size: 10px;
+  padding: 8px;
+  white-space: pre;
+  overflow: auto;
+  margin-top: 10px;
+  display: none;
+}
+
+.status { font-size: 11px; color: #888; margin: 2px 0; }
+.zoom-control { display: flex; gap: 5px; align-items: center; }
+.zoom-control input { width: 80px; }
+</style>
+</head>
+<body>
+
+<h1>✦ Pixel Sprite Editor</h1>
+<h2 id="spriteName">player_idle_down</h2>
+
+<div class="editor">
+  <div>
+    <canvas id="pixelCanvas" width="256" height="256"></canvas>
+    <div class="status" id="status">Grid: 32x32 | Zoom: 8x</div>
+  </div>
+
+  <div class="tools">
+    <div><strong>Palette</strong></div>
+    <div class="color-row" id="palette"></div>
+
+    <hr style="border-color:#333;width:100%">
+    <div><strong>Tools</strong></div>
+    <button id="toolPencil" class="active">✏ Pencil [P]</button>
+    <button id="toolFill">🪣 Fill [F]</button>
+    <button id="toolEyedrop">💉 Eyedrop [I]</button>
+    <button id="toolEraser">🧹 Eraser [E]</button>
+
+    <hr style="border-color:#333;width:100%">
+    <div><strong>Actions</strong></div>
+    <button id="clearBtn">🗑 Clear</button>
+    <button id="undoBtn">↩ Undo [Z]</button>
+    <button id="exportBtn">📦 Export to JS</button>
+    <button id="copyBtn">📋 Copy to Clipboard</button>
+
+    <hr style="border-color:#333;width:100%">
+    <div><strong>Sprites</strong></div>
+    <select id="spriteSelect" style="width:100%;background:#2a2a44;color:#ddd;border:1px solid #444;padding:4px;font-family:monospace"></select>
+    <button id="loadSprite">Load Selected</button>
+    <button id="saveSprite">💾 Save Current</button>
+    <button id="addSprite">+ New Sprite</button>
+  </div>
+</div>
+
+<div id="exportOutput"></div>
+
+<script>
+// ── Palette ──
+const PALETTE = {
+  '#0a0a0a': 'HITAM', '#e8c97a': 'SKIN', '#d4b065': 'SKIN_S',
+  '#2a1a0a': 'HAIR', '#3d2a14': 'HAIR_H', '#1a2a4a': 'JKT',
+  '#2a3d6b': 'JKT_H', '#0f1a30': 'JKT_S', '#1a1a2e': 'CLN',
+  '#2a2a44': 'CLN_H', '#222222': 'SPT_D', '#2a4a6b': 'COLLAR',
+  '#8a6040': 'MULUT', '#000000': 'MATA', '#e8e0d0': 'PUTIH',
+  '#4a0a0a': 'DARAH', '#cc2222': 'MERAH', '#6b4423': 'KAYU',
+  '#4a2e15': 'KAYU_S', '#8a5e3a': 'KAYU_H', '#5a5a5a': 'BATU',
+  '#3a3a3a': 'BATU_S', '#2a4a1a': 'HIJAU', '#1a3a0a': 'HIJAU_S',
+  '#4a6a3a': 'HIJAU_H', '#ccaa22': 'KUNING', '#cc6622': 'ORANGE',
+  '#2244aa': 'BIRU', '#4a2a6a': 'UNGU', '#5a3a1a': 'COKLAT',
+  '#8a8a8a': 'ABU', '#5a5a5a': 'ABU_S', '#cc88aa': 'PINK',
+  '#4a3020': 'KURSI', '#6a4a2a': 'TONGKAT', '#8a7a5a': 'BAJU',
+  '#6a5a3a': 'BAJU_S', '#3a2a1a': 'SARUNG', '#5a4a2a': 'SARUNG_P',
+  '#6a7a7a': 'BAJU_H', '#4a5a5a': 'BAJU_H_S', '#4488aa': 'CAHAYA',
+  '#c8c0b0': 'KULIT_H', '#ff4444': 'HP_RED', '#44ff44': 'HP_GREEN',
+  '#ffffff': 'WHITE',
+};
+const COLORS = Object.keys(PALETTE);
+
+// ── State ──
+const SIZE = 32;
+const MIN_ZOOM = 4;
+const MAX_ZOOM = 24;
+let zoom = 8;
+let pixels = new Array(SIZE * SIZE).fill('');
+let history = [];
+let selectedColor = '#0a0a0a';
+let currentTool = 'pencil';
+let isDrawing = false;
+let sprites = {};
+let currentSprite = 'player_idle_down';
+
+const canvas = document.getElementById('pixelCanvas');
+const ctx = canvas.getContext('2d');
+const statusEl = document.getElementById('status');
+
+// ── Build palette UI ──
+const paletteEl = document.getElementById('palette');
+COLORS.forEach(hex => {
+  const sw = document.createElement('div');
+  sw.className = 'color-swatch';
+  sw.dataset.color = hex;
+  sw.style.background = hex;
+  if (hex === '#000000') sw.style.border = '1px solid #555';
+  sw.addEventListener('click', () => selectColor(hex));
+  paletteEl.appendChild(sw);
+});
+
+function selectColor(hex) {
+  selectedColor = hex;
+  document.querySelectorAll('.color-swatch').forEach(el => el.classList.toggle('active', el.dataset.color === hex));
+}
+
+selectColor(COLORS[0]);
+
+// ── Drawing ──
+function setPixel(x, y, color) {
+  if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return;
+  const idx = y * SIZE + x;
+  if (pixels[idx] === color) return;
+  history.push({ idx, oldColor: pixels[idx], newColor: color });
+  if (history.length > 100) history.shift();
+  pixels[idx] = color;
+}
+
+function fillArea(x, y, color) {
+  const target = getPixel(x, y);
+  if (target === color) return;
+  const stack = [[x, y]];
+  const visited = new Set();
+  while (stack.length) {
+    const [cx, cy] = stack.pop();
+    const key = cx + ',' + cy;
+    if (visited.has(key)) continue;
+    visited.add(key);
+    if (cx < 0 || cx >= SIZE || cy < 0 || cy >= SIZE) continue;
+    if (getPixel(cx, cy) !== target) continue;
+    setPixel(cx, cy, color);
+    stack.push([cx+1, cy], [cx-1, cy], [cx, cy+1], [cx, cy-1]);
+  }
+}
+
+function getPixel(x, y) {
+  return pixels[y * SIZE + x];
+}
+
+// ── Render ──
+function render() {
+  const cellSize = zoom;
+  canvas.width = SIZE * cellSize;
+  canvas.height = SIZE * cellSize;
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  for (let y = 0; y < SIZE; y++) {
+    for (let x = 0; x < SIZE; x++) {
+      const color = pixels[y * SIZE + x];
+      if (color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+  
+  // Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 0.5;
+  for (let i = 1; i < SIZE; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * cellSize, 0);
+    ctx.lineTo(i * cellSize, canvas.height);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, i * cellSize);
+    ctx.lineTo(canvas.width, i * cellSize);
+    ctx.stroke();
+  }
+}
+
+// ── Mouse events ──
+canvas.addEventListener('mousedown', e => {
+  isDrawing = true;
+  handleDraw(e);
+});
+canvas.addEventListener('mousemove', e => {
+  if (isDrawing) handleDraw(e);
+});
+canvas.addEventListener('mouseup', () => isDrawing = false);
+canvas.addEventListener('mouseleave', () => isDrawing = false);
+
+// Touch events
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  isDrawing = true;
+  handleTouchDraw(e);
+});
+canvas.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (isDrawing) handleTouchDraw(e);
+});
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  isDrawing = false;
+});
+
+function getCanvasCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  const cellSize = zoom;
+  return {
+    x: Math.floor((e.clientX - rect.left) / (rect.width / SIZE)),
+    y: Math.floor((e.clientY - rect.top) / (rect.height / SIZE)),
+  };
+}
+
+function getTouchCoords(e) {
+  const rect = canvas.getBoundingClientRect();
+  const touch = e.touches[0];
+  return {
+    x: Math.floor((touch.clientX - rect.left) / (rect.width / SIZE)),
+    y: Math.floor((touch.clientY - rect.top) / (rect.height / SIZE)),
+  };
+}
+
+function handleDraw(e) {
+  const { x, y } = getCanvasCoords(e);
+  if (currentTool === 'pencil') setPixel(x, y, selectedColor);
+  else if (currentTool === 'eraser') setPixel(x, y, '');
+  else if (currentTool === 'fill') { fillArea(x, y, selectedColor); isDrawing = false; }
+  else if (currentTool === 'eyedrop') {
+    const c = getPixel(x, y);
+    if (c) selectColor(c);
+    isDrawing = false;
+  }
+  render();
+  updateStatus();
+}
+
+function handleTouchDraw(e) {
+  const { x, y } = getTouchCoords(e);
+  if (currentTool === 'pencil') setPixel(x, y, selectedColor);
+  else if (currentTool === 'eraser') setPixel(x, y, '');
+  else if (currentTool === 'fill') { fillArea(x, y, selectedColor); isDrawing = false; }
+  else if (currentTool === 'eyedrop') {
+    const c = getPixel(x, y);
+    if (c) selectColor(c);
+    isDrawing = false;
+  }
+  render();
+  updateStatus();
+}
+
+function updateStatus() {
+  const filled = pixels.filter(p => p !== '').length;
+  const pct = (filled / (SIZE * SIZE) * 100).toFixed(1);
+  statusEl.textContent = `Grid: ${SIZE}x${SIZE} | Zoom: ${zoom}x | Filled: ${filled}px (${pct}%)`;
+}
+
+// ── Tool buttons ──
+document.getElementById('toolPencil').addEventListener('click', () => { currentTool = 'pencil'; setActiveTool('toolPencil'); });
+document.getElementById('toolFill').addEventListener('click', () => { currentTool = 'fill'; setActiveTool('toolFill'); });
+document.getElementById('toolEyedrop').addEventListener('click', () => { currentTool = 'eyedrop'; setActiveTool('toolEyedrop'); });
+document.getElementById('toolEraser').addEventListener('click', () => { currentTool = 'eraser'; setActiveTool('toolEraser'); });
+
+function setActiveTool(id) {
+  document.querySelectorAll('.tools button[id^=tool]').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+document.getElementById('clearBtn').addEventListener('click', () => {
+  if (!confirm('Clear all pixels?')) return;
+  pixels.fill('');
+  render();
+  updateStatus();
+});
+
+document.getElementById('undoBtn').addEventListener('click', () => {
+  if (history.length === 0) return;
+  const last = history.pop();
+  pixels[last.idx] = last.oldColor;
+  render();
+  updateStatus();
+});
+
+// ── Export -- ──
+document.getElementById('exportBtn').addEventListener('click', exportJS);
+
+function exportJS() {
+  const data = JSON.stringify(pixels);
+  const name = currentSprite;
+  const js = `ASSETS.sprites.${name} = {\n  w: ${SIZE}, h: ${SIZE},\n  data: ${data}\n};`;
+  
+  const output = document.getElementById('exportOutput');
+  output.textContent = js;
+  output.style.display = 'block';
+}
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const output = document.getElementById('exportOutput');
+  if (output.style.display === 'none') exportJS();
+  navigator.clipboard.writeText(output.textContent).then(() => {
+    alert('Copied!');
+  });
+});
+
+// ── Sprite management ──
+function addSpriteToSelect(name, data) {
+  const select = document.getElementById('spriteSelect');
+  const opt = document.createElement('option');
+  opt.value = name;
+  opt.textContent = name;
+  select.appendChild(opt);
+}
+
+document.getElementById('saveSprite').addEventListener('click', () => {
+  sprites[currentSprite] = [...pixels];
+  alert(`Sprite "${currentSprite}" saved in memory.`);
+});
+
+document.getElementById('loadSprite').addEventListener('click', () => {
+  const select = document.getElementById('spriteSelect');
+  const name = select.value;
+  if (sprites[name]) {
+    pixels = [...sprites[name]];
+  } else if (name === currentSprite && sprites[name]) {
+    // already loaded
+  } else {
+    // Load from embedded defaults
+    loadEmbedded(name);
+  }
+  currentSprite = name;
+  document.getElementById('spriteName').textContent = name;
+  render();
+  updateStatus();
+});
+
+document.getElementById('addSprite').addEventListener('click', () => {
+  const name = prompt('Sprite name:', 'new_sprite');
+  if (!name) return;
+  sprites[name] = new Array(SIZE * SIZE).fill('');
+  addSpriteToSelect(name);
+  currentSprite = name;
+  pixels = sprites[name];
+  document.getElementById('spriteName').textContent = name;
+  render();
+  updateStatus();
+});
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  switch (e.key.toLowerCase()) {
+    case 'p': currentTool = 'pencil'; setActiveTool('toolPencil'); break;
+    case 'f': currentTool = 'fill'; setActiveTool('toolFill'); break;
+    case 'i': currentTool = 'eyedrop'; setActiveTool('toolEyedrop'); break;
+    case 'e': currentTool = 'eraser'; setActiveTool('toolEraser'); break;
+    case 'z': if (e.ctrlKey) return; document.getElementById('undoBtn').click(); break;
+    case '[': zoom = Math.max(MIN_ZOOM, zoom - 2); render(); updateStatus(); break;
+    case ']': zoom = Math.min(MAX_ZOOM, zoom + 2); render(); updateStatus(); break;
+  }
+});
+
+// ── Init ──
+function loadEmbedded(name) {
+  pixels = new Array(SIZE * SIZE).fill('');
+  currentSprite = name;
+  sprites[name] = pixels;
+  document.getElementById('spriteName').textContent = name;
+}
+
+// Setup sprite select
+const DEFAULT_SPRITES = ['player_idle_down', 'player_idle_up', 'player_idle_left', 'player_idle_right',
+  'player_walk_down_0','player_walk_down_1','player_walk_down_2','player_walk_down_3',
+  'player_walk_up_0','player_walk_up_1','player_walk_up_2','player_walk_up_3',
+  'player_walk_left_0','player_walk_left_1','player_walk_left_2','player_walk_left_3',
+  'player_walk_right_0','player_walk_right_1','player_walk_right_2','player_walk_right_3',
+  'mbah_duduk', 'mbah_apparition'];
+
+DEFAULT_SPRITES.forEach(name => addSpriteToSelect(name));
+loadEmbedded('player_idle_down');
+render();
+updateStatus();
+</script>
+</body>
+</html>
